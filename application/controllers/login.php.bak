@@ -1,0 +1,106 @@
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+
+/*************************************
+  * Created : Dec 2011
+  * Creator : Mazhters Irwan
+  * Email   : irwansyah@komunigrafik.com
+  * CMS ver : CI ver.2.0
+*************************************/
+
+class login extends CI_Controller {
+	
+	var $title = "Login";
+	var $filename = "login";
+	
+	function __construct()
+	{
+		parent::__construct();
+	}
+	
+	function index()
+	{
+		$this->main();
+	}
+	
+	function main()
+	{
+		if($this->session->userdata("webmaster_id")){redirect("home");}
+		$data = GetHeaderFooter();
+		$data['main_content'] = 'login';
+		$data['title'] = $this->title;
+		$data['filename'] = $this->filename;
+		if($this->uri->segment(3) == "err") $data['dis_error'] = "display:''";
+		else $data['dis_error'] = "display:none;";
+		$this->load->view('template_login',$data);
+	}
+	
+	function cek_login()
+	{
+		$username = $this->input->post("username");
+		$userpass = md5($this->config->item('encryption_key').$this->input->post("password"));
+		
+		$query=cekLogin($username,$userpass);
+		if ($query->num_rows() > 0)
+		{
+			$row = $query->row(); 
+			$this->load->library("session");
+			$this->session->set_userdata('admin',$row->name);
+			$this->session->set_userdata('webmaster_grup',$row->id_admin_grup);
+			$this->session->set_userdata('webmaster_id',$row->id);
+			redirect('dashboard');
+		}
+		else
+		{
+			redirect('login/main/err');
+		}
+	}
+	
+	
+	function logout()
+	{
+		$this->session->sess_destroy();
+		redirect('login');
+	}
+	
+	function change_password()
+	{
+		//permission();
+		$data['filename'] = $this->filename;
+		$msg="";
+		if($this->uri->segment(3) == "err")
+		{
+			$data['dis_error'] = "display:''";
+			if($this->uri->segment(4) == 1) $msg = "Password Lama Tidak Valid";
+			else $msg = "Ganti Password Berhasil";
+		}
+		else $data['dis_error'] = "display:none;";
+		$data['msg'] = $msg;
+		$this->load->view('change_password',$data);
+	}
+	
+	function cek_password()
+	{
+		$webmaster_id = $this->session->userdata("webmaster_id");
+		$old_pass = md5($this->config->item('encryption_key').$this->input->post("old_password"));
+		$cek_old_pass = GetValue("userpass","admin", array("id"=> "where/".$webmaster_id));
+		$cek_old_pass2 = GetValue("userpass","employee", array("id"=> "where/".substr($webmaster_id,1)));
+		if($old_pass == $cek_old_pass)
+		{
+			$new_pass = md5($this->config->item('encryption_key').$this->input->post("new_password"));
+			$data = array("userpass"=> $new_pass);
+			$this->db->where("id", $webmaster_id);
+			$this->db->update("admin", $data);
+			redirect('login/change_password/err/2');
+		}
+		else if($old_pass == $cek_old_pass2)
+		{
+			$new_pass = md5($this->config->item('encryption_key').$this->input->post("new_password"));
+			$data = array("userpass"=> $new_pass);
+			$this->db->where("id", substr($webmaster_id,1));
+			$this->db->update("employee", $data);
+			redirect('login/change_password/err/2');
+		}
+		else redirect('login/change_password/err/1');
+	}
+}
+?>
